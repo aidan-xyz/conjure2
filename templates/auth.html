@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Conjure — Sign in</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --cream: #f7f3ec;
+            --ink:   #111111;
+            --red:   #c8341e;
+            --mid:   #706860;
+            --border: rgba(0,0,0,0.1);
+        }
+
+        body {
+            font-family: "Inter", system-ui, sans-serif;
+            background: var(--ink);
+            color: var(--cream);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* NAV */
+        nav {
+            padding: 1.1rem 2.5rem;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .nav-logo {
+            font-family: "Fraunces", serif;
+            font-size: 1.2rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            color: var(--cream);
+            text-decoration: none;
+        }
+
+        /* MAIN */
+        main {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem 1.5rem;
+        }
+
+        .card {
+            background: var(--cream);
+            color: var(--ink);
+            border-radius: 6px;
+            width: 100%;
+            max-width: 420px;
+            overflow: hidden;
+        }
+
+        /* TABS */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 1rem;
+            background: none;
+            border: none;
+            font-family: "Inter", sans-serif;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--mid);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: color 0.15s, border-color 0.15s;
+            margin-bottom: -1px;
+        }
+
+        .tab-btn.active {
+            color: var(--ink);
+            border-bottom-color: var(--red);
+        }
+
+        /* FORM */
+        .tab-panel { display: none; padding: 2rem; }
+        .tab-panel.active { display: block; }
+
+        .card-title {
+            font-family: "Fraunces", serif;
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin-bottom: 0.35rem;
+        }
+
+        .card-sub {
+            font-size: 0.875rem;
+            color: var(--mid);
+            margin-bottom: 1.75rem;
+        }
+
+        /* FLASH MESSAGES */
+        .flash {
+            font-size: 0.85rem;
+            padding: 0.65rem 0.9rem;
+            border-radius: 4px;
+            margin-bottom: 1.25rem;
+        }
+
+        .flash.error {
+            background: #fdecea;
+            color: #a12110;
+            border: 1px solid #f5c0b8;
+        }
+
+        .flash.success {
+            background: #eaf4ec;
+            color: #1a5c2a;
+            border: 1px solid #b3ddb9;
+        }
+
+        label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--mid);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 0.4rem;
+        }
+
+        input[type="email"],
+        input[type="password"] {
+            width: 100%;
+            padding: 0.7rem 0.9rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-family: "Inter", sans-serif;
+            font-size: 0.95rem;
+            color: var(--ink);
+            background: #faf8f4;
+            margin-bottom: 1.25rem;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        input:focus {
+            border-color: var(--red);
+        }
+
+        .btn-submit {
+            width: 100%;
+            background: var(--red);
+            color: #fff;
+            border: none;
+            padding: 0.8rem;
+            border-radius: 4px;
+            font-family: "Inter", sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .btn-submit:hover { background: #a82a14; }
+
+        .switch-link {
+            text-align: center;
+            margin-top: 1.25rem;
+            font-size: 0.85rem;
+            color: var(--mid);
+        }
+
+        .switch-link button {
+            background: none;
+            border: none;
+            font-family: "Inter", sans-serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--ink);
+            cursor: pointer;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <a class="nav-logo" href="{{ url_for('index') }}">Conjure</a>
+    </nav>
+
+    <main>
+        <div class="card">
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="login">Sign in</button>
+                <button class="tab-btn" data-tab="signup">Create account</button>
+            </div>
+
+            <!-- Flash messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div style="padding: 1rem 2rem 0;">
+                        {% for category, message in messages %}
+                            <div class="flash {{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <!-- LOGIN -->
+            <div class="tab-panel active" id="panel-login">
+                <p class="card-title">Welcome back.</p>
+                <p class="card-sub">Sign in to your Conjure account.</p>
+                <form method="POST" action="{{ url_for('auth') }}">
+                    <input type="hidden" name="action" value="login" />
+                    <label for="login-email">Email</label>
+                    <input type="email" id="login-email" name="email" required autocomplete="email" />
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" name="password" required autocomplete="current-password" />
+                    <button type="submit" class="btn-submit">Sign in →</button>
+                </form>
+                <p class="switch-link">No account? <button onclick="switchTab('signup')">Create one</button></p>
+            </div>
+
+            <!-- SIGNUP -->
+            <div class="tab-panel" id="panel-signup">
+                <p class="card-title">Get started.</p>
+                <p class="card-sub">Create your Conjure account.</p>
+                <form method="POST" action="{{ url_for('auth') }}">
+                    <input type="hidden" name="action" value="signup" />
+                    <label for="signup-email">Email</label>
+                    <input type="email" id="signup-email" name="email" required autocomplete="email" />
+                    <label for="signup-password">Password</label>
+                    <input type="password" id="signup-password" name="password" required autocomplete="new-password" minlength="8" />
+                    <label for="signup-confirm">Confirm password</label>
+                    <input type="password" id="signup-confirm" name="confirm_password" required autocomplete="new-password" minlength="8" />
+                    <button type="submit" class="btn-submit">Create account →</button>
+                </form>
+                <p class="switch-link">Already have an account? <button onclick="switchTab('login')">Sign in</button></p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function switchTab(name) {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tab === name);
+            });
+            document.querySelectorAll('.tab-panel').forEach(panel => {
+                panel.classList.toggle('active', panel.id === 'panel-' + name);
+            });
+        }
+
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+        });
+    </script>
+
+</body>
+</html>

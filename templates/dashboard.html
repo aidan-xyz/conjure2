@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Conjure — Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --cream: #f7f3ec;
+            --ink:   #111111;
+            --red:   #c8341e;
+            --mid:   #706860;
+            --border: rgba(0,0,0,0.09);
+        }
+
+        body {
+            font-family: "Inter", system-ui, sans-serif;
+            background: var(--cream);
+            color: var(--ink);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* TOP NAV */
+        header {
+            background: var(--ink);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.9rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-logo {
+            font-family: "Fraunces", serif;
+            font-size: 1.15rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            color: var(--cream);
+            text-decoration: none;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+        }
+
+        .user-email {
+            font-size: 0.8rem;
+            color: rgba(247,243,236,0.45);
+        }
+
+        .btn-logout {
+            font-family: "Inter", sans-serif;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: rgba(247,243,236,0.55);
+            background: none;
+            border: 1px solid rgba(247,243,236,0.15);
+            padding: 0.35rem 0.85rem;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: color 0.15s, border-color 0.15s;
+        }
+
+        .btn-logout:hover {
+            color: var(--cream);
+            border-color: rgba(247,243,236,0.4);
+        }
+
+        /* LAYOUT */
+        .layout {
+            display: flex;
+            flex: 1;
+        }
+
+        /* SIDEBAR */
+        aside {
+            width: 220px;
+            flex-shrink: 0;
+            background: #1a1a1a;
+            min-height: calc(100vh - 50px);
+            padding: 1.75rem 0;
+            border-right: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .sidebar-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: rgba(247,243,236,0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            padding: 0 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .sidebar-nav {
+            list-style: none;
+        }
+
+        .sidebar-nav li a {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.6rem 1.25rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: rgba(247,243,236,0.5);
+            text-decoration: none;
+            border-left: 2px solid transparent;
+            transition: color 0.15s, border-color 0.15s, background 0.15s;
+        }
+
+        .sidebar-nav li a:hover {
+            color: var(--cream);
+            background: rgba(255,255,255,0.04);
+        }
+
+        .sidebar-nav li a.active {
+            color: var(--cream);
+            border-left-color: var(--red);
+            background: rgba(255,255,255,0.05);
+        }
+
+        /* MAIN CONTENT */
+        main {
+            flex: 1;
+            padding: 2.5rem 2.5rem;
+            overflow-y: auto;
+        }
+
+        .page-title {
+            font-family: "Fraunces", serif;
+            font-size: 1.75rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin-bottom: 0.35rem;
+        }
+
+        .page-sub {
+            font-size: 0.9rem;
+            color: var(--mid);
+            margin-bottom: 2.5rem;
+        }
+
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* CARDS */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 1.25rem;
+            margin-bottom: 2.5rem;
+        }
+
+        .stat-card {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1.25rem 1.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--mid);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-family: "Fraunces", serif;
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            color: var(--ink);
+        }
+
+        /* TABLE */
+        .table-wrap {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .table-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .table-head h3 {
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .btn-action {
+            background: var(--red);
+            color: #fff;
+            border: none;
+            padding: 0.45rem 1rem;
+            border-radius: 3px;
+            font-family: "Inter", sans-serif;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .btn-action:hover { background: #a82a14; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--mid);
+            padding: 0.75rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            background: #faf8f4;
+        }
+
+        td {
+            padding: 0.85rem 1.5rem;
+            font-size: 0.875rem;
+            border-bottom: 1px solid var(--border);
+            color: #333;
+        }
+
+        tr:last-child td { border-bottom: none; }
+
+        .badge {
+            display: inline-block;
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 0.2rem 0.55rem;
+            border-radius: 99px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .badge-sent    { background: #e8f4fb; color: #1565a8; }
+        .badge-pending { background: #fef9e7; color: #8a6d00; }
+        .badge-opened  { background: #eaf4ec; color: #1a5c2a; }
+
+        /* SETTINGS */
+        .settings-section {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .settings-section h3 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .field-row {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .field-row label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--mid);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .field-row input,
+        .field-row textarea {
+            padding: 0.65rem 0.9rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-family: "Inter", sans-serif;
+            font-size: 0.9rem;
+            color: var(--ink);
+            background: #faf8f4;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        .field-row input:focus,
+        .field-row textarea:focus {
+            border-color: var(--red);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--mid);
+        }
+
+        .empty-state p {
+            font-size: 0.9rem;
+            margin-bottom: 1.25rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <a class="nav-logo" href="{{ url_for('index') }}">Conjure</a>
+        <div class="header-right">
+            <span class="user-email">{{ user.email }}</span>
+            <form method="POST" action="{{ url_for('logout') }}">
+                <button type="submit" class="btn-logout">Sign out</button>
+            </form>
+        </div>
+    </header>
+
+    <div class="layout">
+        <aside>
+            <p class="sidebar-label">Navigation</p>
+            <ul class="sidebar-nav">
+                <li><a href="#" class="active" onclick="setTab('overview'); return false;">Overview</a></li>
+                <li><a href="#" onclick="setTab('leads'); return false;">Leads</a></li>
+                <li><a href="#" onclick="setTab('settings'); return false;">Settings</a></li>
+            </ul>
+        </aside>
+
+        <main>
+            <h1 class="page-title">Dashboard</h1>
+            <p class="page-sub">Manage your outbound from here.</p>
+
+            <!-- OVERVIEW -->
+            <div class="tab-panel active" id="panel-overview">
+                <div class="stat-grid">
+                    <div class="stat-card">
+                        <p class="stat-label">Pieces sent</p>
+                        <p class="stat-value">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <p class="stat-label">Opened</p>
+                        <p class="stat-value">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <p class="stat-label">Replied</p>
+                        <p class="stat-value">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <p class="stat-label">In queue</p>
+                        <p class="stat-value">0</p>
+                    </div>
+                </div>
+
+                <div class="table-wrap">
+                    <div class="table-head">
+                        <h3>Recent activity</h3>
+                        <button class="btn-action">+ New piece</button>
+                    </div>
+                    <div class="empty-state">
+                        <p>No pieces sent yet.</p>
+                        <button class="btn-action">Build one for someone →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LEADS -->
+            <div class="tab-panel" id="panel-leads">
+                <div class="table-wrap">
+                    <div class="table-head">
+                        <h3>Lead list</h3>
+                        <button class="btn-action">+ Add lead</button>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Company</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="4" style="text-align:center; color:var(--mid); padding: 3rem;">
+                                    No leads yet. Add one to get started.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SETTINGS -->
+            <div class="tab-panel" id="panel-settings">
+                <div class="settings-section">
+                    <h3>Account</h3>
+                    <div class="field-row">
+                        <label>Email</label>
+                        <input type="email" value="{{ user.email }}" readonly />
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Sender details</h3>
+                    <div class="field-row">
+                        <label>Your name</label>
+                        <input type="text" placeholder="Jane Smith" />
+                    </div>
+                    <div class="field-row">
+                        <label>Company</label>
+                        <input type="text" placeholder="Acme Corp" />
+                    </div>
+                    <div class="field-row">
+                        <label>Return address</label>
+                        <input type="text" placeholder="123 Main St, City, State 00000" />
+                    </div>
+                    <button class="btn-action">Save changes</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function setTab(name) {
+            document.querySelectorAll('.tab-panel').forEach(panel => {
+                panel.classList.toggle('active', panel.id === 'panel-' + name);
+            });
+            document.querySelectorAll('.sidebar-nav a').forEach(a => {
+                a.classList.toggle('active', a.getAttribute('onclick') && a.getAttribute('onclick').includes(name));
+            });
+        }
+    </script>
+
+</body>
+</html>
