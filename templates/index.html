@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Distra — Outbound that isn't slop.</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --black: #0d0d0d;
+            --off-white: #f5f4f0;
+            --mid: #6b6b6b;
+            --ink: #1a1a1a;
+        }
+
+        body {
+            font-family: "Georgia", serif;
+            background: var(--off-white);
+            color: var(--ink);
+            line-height: 1.6;
+        }
+
+        /* NAV */
+        nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.25rem 2rem;
+            border-bottom: 1px solid #e0dfd9;
+        }
+
+        .nav-logo {
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: var(--black);
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+            list-style: none;
+        }
+
+        .nav-links a {
+            font-family: system-ui, sans-serif;
+            font-size: 0.875rem;
+            color: var(--mid);
+            text-decoration: none;
+        }
+
+        .nav-links a:hover { color: var(--black); }
+
+        .nav-links .btn-nav {
+            background: var(--black);
+            color: #fff;
+            padding: 0.45rem 1rem;
+            border-radius: 4px;
+        }
+
+        .nav-links .btn-nav:hover { background: #333; color: #fff; }
+
+        /* SECTIONS */
+        section {
+            max-width: 660px;
+            margin: 0 auto;
+            padding: 5rem 2rem;
+        }
+
+        /* HERO */
+        .hero { padding-top: 7rem; padding-bottom: 4rem; }
+
+        .hero h1 {
+            font-size: clamp(2.2rem, 5vw, 3.2rem);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            line-height: 1.15;
+            color: var(--black);
+            margin-bottom: 1.25rem;
+        }
+
+        .hero p {
+            font-size: 1.125rem;
+            color: #444;
+            max-width: 520px;
+            margin-bottom: 2.5rem;
+        }
+
+        .btn-group { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+
+        .btn-primary {
+            background: var(--black);
+            color: #fff;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            font-family: system-ui, sans-serif;
+            font-size: 0.95rem;
+            text-decoration: none;
+            transition: background 0.15s;
+        }
+
+        .btn-primary:hover { background: #333; }
+
+        .btn-secondary {
+            font-family: system-ui, sans-serif;
+            font-size: 0.95rem;
+            color: var(--mid);
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+
+        .btn-secondary:hover { color: var(--black); }
+
+        /* PROBLEM LINE */
+        .problem {
+            padding-top: 0;
+            padding-bottom: 3rem;
+            border-bottom: 1px solid #e0dfd9;
+        }
+
+        .problem p {
+            font-family: system-ui, sans-serif;
+            font-size: 0.9rem;
+            color: var(--mid);
+            font-style: italic;
+        }
+
+        /* WHAT IT IS */
+        .what h2 {
+            font-size: 1.65rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 1.25rem;
+            color: var(--black);
+        }
+
+        .what p {
+            font-size: 1.05rem;
+            color: #444;
+            line-height: 1.75;
+        }
+
+        /* THREE BEATS */
+        .beats { padding-top: 3rem; padding-bottom: 3rem; }
+
+        .beats ul {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .beats li {
+            font-size: 1.05rem;
+            color: #333;
+            line-height: 1.7;
+        }
+
+        .beats li strong {
+            color: var(--black);
+            font-size: 1.1rem;
+        }
+
+        /* SCALE */
+        .scale {
+            border-top: 1px solid #e0dfd9;
+            padding-top: 4rem;
+            padding-bottom: 4rem;
+        }
+
+        .scale h2 {
+            font-size: 1.65rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 1.25rem;
+            color: var(--black);
+        }
+
+        .scale p {
+            font-size: 1.05rem;
+            color: #444;
+            line-height: 1.75;
+        }
+
+        /* SOCIAL PROOF */
+        .proof {
+            padding-top: 0;
+            padding-bottom: 4rem;
+        }
+
+        .proof p {
+            font-family: system-ui, sans-serif;
+            font-size: 0.875rem;
+            color: var(--mid);
+            font-style: italic;
+        }
+
+        /* CLOSER */
+        .closer {
+            border-top: 1px solid #e0dfd9;
+            text-align: center;
+            padding-top: 5rem;
+            padding-bottom: 5rem;
+        }
+
+        .closer h2 {
+            font-size: 1.9rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 2rem;
+            color: var(--black);
+        }
+
+        .closer .btn-group { justify-content: center; }
+
+        .under-button {
+            margin-top: 1.1rem;
+            font-family: system-ui, sans-serif;
+            font-size: 0.85rem;
+            color: var(--mid);
+        }
+
+        /* FOOTER */
+        footer {
+            border-top: 1px solid #e0dfd9;
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        footer span {
+            font-family: system-ui, sans-serif;
+            font-size: 0.8rem;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <a class="nav-logo" href="#">Distra</a>
+        <ul class="nav-links">
+            <li><a href="#">See an example</a></li>
+            <li><a href="#" class="btn-nav">Get early access</a></li>
+        </ul>
+    </nav>
+
+    <section class="hero">
+        <h1>Outbound that isn't slop.</h1>
+        <p>The first thing you send someone shouldn't look like the first thing everyone sends. Distra turns a name into a piece they actually keep.</p>
+        <div class="btn-group">
+            <a href="#" class="btn-primary">Make one →</a>
+            <a href="#" class="btn-secondary">See how it works</a>
+        </div>
+    </section>
+
+    <section class="problem">
+        <p>Every inbox is full. Every template is the same. "Hi {first_name}, I noticed you're the {title} at {company}" — deleted before the comma.</p>
+    </section>
+
+    <section class="what">
+        <h2>We make a homepage for a person.</h2>
+        <p>Give us a name. Distra reads what they've put into the world — what they build, where they're from, what they keep posting about — and renders it as something that could only have been made for them. Then it prints. Or mails. To one person, or your entire list.</p>
+    </section>
+
+    <section class="beats">
+        <ul>
+            <li><strong>It looks.</strong> Not a merge field. The actual person — their city, their work, the thing they won't shut up about.</li>
+            <li><strong>It lands.</strong> Paper, not another email. It sits on a desk instead of in a trash folder.</li>
+            <li><strong>It opens a door.</strong> A real first touch people answer, because for once someone paid attention.</li>
+        </ul>
+    </section>
+
+    <section class="scale">
+        <h2>Now imagine this in every mailbox on your lead list.</h2>
+        <p>One name is a gift. A thousand names is a channel. Same engine, same hand, mailed for you.</p>
+    </section>
+
+    <section class="proof">
+        <p>Built at YC's first GTM hackathon. Ask the printer.</p>
+    </section>
+
+    <section class="closer">
+        <h2>Stop sending slop.</h2>
+        <div class="btn-group">
+            <a href="#" class="btn-primary">Build one for someone →</a>
+        </div>
+        <p class="under-button">Give us a name. We'll show you the rest.</p>
+    </section>
+
+    <footer>
+        <span>Distra</span>
+        <span>made for one person at a time</span>
+    </footer>
+
+</body>
+</html>
