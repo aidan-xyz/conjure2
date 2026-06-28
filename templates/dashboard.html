@@ -373,14 +373,40 @@
                     </div>
                 </div>
 
+                <div class="table-wrap" style="margin-bottom:1.5rem;">
+                    <div class="table-head">
+                        <h3>Generate a piece</h3>
+                    </div>
+                    <div style="padding:1.75rem;">
+                        <form id="generate-form" method="POST" action="/generate">
+                            <div class="field-row" style="margin-bottom:1rem;">
+                                <label>Full name</label>
+                                <input type="text" name="name" placeholder="Jane Smith" required />
+                            </div>
+                            <div class="field-row" style="margin-bottom:1.5rem;">
+                                <label>LinkedIn URL <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#aaa;">(optional but recommended)</span></label>
+                                <input type="url" name="linkedin_url" placeholder="https://linkedin.com/in/..." />
+                            </div>
+                            <button type="submit" class="btn-action">Generate homepage →</button>
+                        </form>
+                        {% if result %}
+                        <div style="margin-top:2rem;border-top:1px solid var(--border);padding-top:1.5rem;">
+                            <p style="font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--mid);margin-bottom:0.75rem;">Output JSON</p>
+                            <pre style="background:#1a1a1a;color:#f7f3ec;padding:1.25rem;border-radius:4px;font-size:0.78rem;overflow-x:auto;white-space:pre-wrap;">{{ result }}</pre>
+                        </div>
+                        {% endif %}
+                        {% if gen_error %}
+                        <div style="margin-top:1.5rem;background:#fdecea;color:#a12110;border:1px solid #f5c0b8;border-radius:4px;padding:0.75rem 1rem;font-size:0.875rem;">{{ gen_error }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
                 <div class="table-wrap">
                     <div class="table-head">
                         <h3>Recent activity</h3>
-                        <button class="btn-action">+ New piece</button>
                     </div>
                     <div class="empty-state">
                         <p>No pieces sent yet.</p>
-                        <button class="btn-action">Build one for someone →</button>
                     </div>
                 </div>
             </div>
@@ -424,19 +450,32 @@
 
                 <div class="settings-section">
                     <h3>Sender details</h3>
-                    <div class="field-row">
-                        <label>Your name</label>
-                        <input type="text" placeholder="Jane Smith" />
-                    </div>
-                    <div class="field-row">
-                        <label>Company</label>
-                        <input type="text" placeholder="Acme Corp" />
-                    </div>
-                    <div class="field-row">
-                        <label>Return address</label>
-                        <input type="text" placeholder="123 Main St, City, State 00000" />
-                    </div>
-                    <button class="btn-action">Save changes</button>
+                    <form method="POST" action="/settings/sender">
+                        <div class="field-row">
+                            <label>Your name</label>
+                            <input type="text" name="sender_name" placeholder="Jane Smith" value="{{ settings.sender_name or '' }}" />
+                        </div>
+                        <div class="field-row">
+                            <label>Company</label>
+                            <input type="text" name="company" placeholder="Acme Corp" value="{{ settings.company or '' }}" />
+                        </div>
+                        <div class="field-row">
+                            <label>Return address</label>
+                            <input type="text" name="return_address" placeholder="123 Main St, City, State 00000" value="{{ settings.return_address or '' }}" />
+                        </div>
+                        <button type="submit" class="btn-action">Save</button>
+                    </form>
+                </div>
+
+                <div class="settings-section">
+                    <h3>API Keys</h3>
+                    <form method="POST" action="/settings/keys">
+                        <div class="field-row">
+                            <label>OpenAI API key</label>
+                            <input type="password" name="openai_key" placeholder="sk-..." value="{{ '•••••••••••••••' if settings.openai_key else '' }}" autocomplete="off" />
+                        </div>
+                        <button type="submit" class="btn-action">Save key</button>
+                    </form>
                 </div>
             </div>
         </main>

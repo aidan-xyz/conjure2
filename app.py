@@ -1,8 +1,9 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from functools import wraps
 import os
+import json
 
 load_dotenv()
 
@@ -81,7 +82,62 @@ def auth():
 def dashboard():
     access_token = session.get("access_token")
     user = supabase.auth.get_user(jwt=access_token).user
-    return render_template("dashboard.html", user=user)
+    # Load saved settings from session (move to Supabase user_settings table in production)
+    settings = session.get("user_settings", {})
+    return render_template("dashboard.html", user=user, settings=settings, result=None, gen_error=None)
+
+
+@app.route("/settings/keys", methods=["POST"])
+@login_required
+def save_keys():
+    settings = session.get("user_settings", {})
+    # Only overwrite if the user typed a real value (not the masked placeholder)
+    for field in ("orangeslice_key", "openai_key"):
+        val = request.form.get(field, "").strip()
+        if val and not set(val) <= {"•"}:
+            settings[field] = val
+    session["user_settings"] = settings
+    flash("API keys saved.", "success")
+    return redirect(url_for("dashboard") + "#settings")
+
+
+@app.route("/settings/sender", methods=["POST"])
+@login_required
+def save_sender():
+    settings = session.get("user_settings", {})
+    for field in ("sender_name", "company", "return_address"):
+        settings[field] = request.form.get(field, "").strip()
+    session["user_settings"] = settings
+    flash("Sender details saved.", "success")
+    return redirect(url_for("dashboard") + "#settings")
+
+
+@app.route("/generate", methods=["POST"])
+@login_required
+def generate():
+    from pipeline import run_pipeline
+    settings = session.get("user_settings", {})
+    openai_key = settings.get("openai_key") or os.environ.get("OPENAI_API_KEY", "")
+    name = request.form.get("name", "").strip()
+    linkedin_url = request.form.get("linkedin_url", "").strip() or None
+
+    if not openai_key:
+        access_token = session.get("access_token")
+        user = supabase.auth.get_user(jwt=access_token).user
+        return render_template("dashboard.html", user=user, settings=settings,
+                               result=None, gen_error="Add your OpenAI API key in Settings first.")
+
+    try:
+        result = run_pipeline(name, linkedin_url, openai_key)
+        access_token = session.get("access_token")
+        user = supabase.auth.get_user(jwt=access_token).user
+        return render_template("dashboard.html", user=user, settings=settings,
+                               result=json.dumps(result, indent=2), gen_error=None)
+    except Exception as e:
+        access_token = session.get("access_token")
+        user = supabase.auth.get_user(jwt=access_token).user
+        return render_template("dashboard.html", user=user, settings=settings,
+                               result=None, gen_error=str(e))
 
 
 @app.route("/logout", methods=["POST"])
