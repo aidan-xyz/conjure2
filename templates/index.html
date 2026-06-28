@@ -94,6 +94,31 @@
         .hero {
             background: var(--ink);
             padding: 4rem 2.5rem 7rem;
+            display: flex;
+            align-items: center;
+            gap: 4rem;
+        }
+
+        .hero-text { flex: 1; min-width: 0; }
+
+        .hero-image {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hero-image img {
+            width: 100%;
+            max-width: 520px;
+            border-radius: 8px;
+            display: block;
+        }
+
+        @media (max-width: 860px) {
+            .hero { flex-direction: column; }
+            .hero-image { width: 100%; }
         }
 
         .hero h1 {
@@ -103,7 +128,6 @@
             letter-spacing: -0.045em;
             line-height: 1.03;
             color: var(--cream);
-            max-width: 720px;
             margin-bottom: 1.5rem;
         }
 
@@ -336,11 +360,16 @@
     </nav>
 
     <section class="hero">
-        <h1>Outbound that isn't slop.</h1>
-        <p>The first thing you send someone shouldn't look like the first thing everyone sends. Conjure turns a name into a piece they actually keep.</p>
-        <div class="btn-group">
-            <a href="#" class="btn-primary">Make one →</a>
-            <a href="#" class="btn-secondary">See how it works</a>
+        <div class="hero-text">
+            <h1>Outbound that isn't slop.</h1>
+            <p>The first thing you send someone shouldn't look like the first thing everyone sends. Conjure turns a name into a piece they actually keep.</p>
+            <div class="btn-group">
+                <a href="#" class="btn-primary">Make one →</a>
+                <a href="#" class="btn-secondary">See how it works</a>
+            </div>
+        </div>
+        <div class="hero-image">
+            <img src="{{ url_for('static', filename='img/demo.png') }}" alt="Example personalized piece" />
         </div>
     </section>
 
