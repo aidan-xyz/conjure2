@@ -4,19 +4,46 @@ from dotenv import load_dotenv
 from functools import wraps
 import os
 import json
+import threading
+import csv
+import io
 
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev")
 
-# Use the publishable key for auth and user-facing operations.
-# Use the secret key (SUPABASE_SECRET_KEY) only for admin/server operations
-# that need to bypass RLS — never expose it to the client.
+# Anon client — used for auth validation only.
 supabase: Client = create_client(
     os.environ.get("SUPABASE_URL", ""),
     os.environ.get("SUPABASE_PUBLISHABLE_KEY", ""),
 )
+
+# Service-role client — used for all DB reads/writes.
+# Bypasses RLS; always filter by user_id manually.
+_service_key = os.environ.get("SUPABASE_SECRET_KEY", "")
+service_db: Client = create_client(os.environ.get("SUPABASE_URL", ""), _service_key) if _service_key else supabase
+
+
+# ---------------------------------------------------------------------------
+# Background enrichment worker
+# ---------------------------------------------------------------------------
+
+def _enrich_lead_worker(lead_id: str, name: str, linkedin_url, openai_key: str):
+    """Runs in a daemon thread: enrich one lead and save raw_data to Supabase."""
+    from pipeline import enrich_lead
+    try:
+        service_db.table("leads").update({"status": "processing"}).eq("id", lead_id).execute()
+        raw_data = enrich_lead(name, linkedin_url, openai_key)
+        service_db.table("leads").update({
+            "raw_data": raw_data,
+            "status": "enriched",
+        }).eq("id", lead_id).execute()
+    except Exception as e:
+        service_db.table("leads").update({
+            "status": "failed",
+            "error_message": str(e)[:500],
+        }).eq("id", lead_id).execute()
 
 
 def login_required(f):
@@ -82,12 +109,114 @@ def auth():
 def dashboard():
     access_token = session.get("access_token")
     user = supabase.auth.get_user(jwt=access_token).user
-    # Load saved settings from session (move to Supabase user_settings table in production)
     settings = session.get("user_settings", {})
-    return render_template("dashboard.html", user=user, settings=settings, result=None, gen_error=None)
+    try:
+        leads = service_db.table("leads") \
+            .select("id,name,email,linkedin_url,status,error_message") \
+            .eq("user_id", user.id) \
+            .order("created_at", desc=True) \
+            .execute().data
+    except Exception:
+        leads = []
+    return render_template("dashboard.html", user=user, settings=settings, leads=leads, result=None, gen_error=None)
 
 
-@app.route("/settings/keys", methods=["POST"])
+@app.route("/leads/import", methods=["POST"])
+@login_required
+def import_leads():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data"}), 400
+
+    csv_text = data.get("csvText", "")
+    mapping = data.get("mapping", {})
+
+    settings = session.get("user_settings", {})
+    openai_key = settings.get("openai_key") or os.environ.get("OPENAI_API_KEY", "")
+
+    access_token = session.get("access_token")
+    user = supabase.auth.get_user(jwt=access_token).user
+
+    reader = csv.DictReader(io.StringIO(csv_text))
+    lead_ids = []
+
+    for row in reader:
+        lead_data = {
+            "user_id": user.id,
+            "name": row.get(mapping.get("name", ""), "").strip(),
+            "email": row.get(mapping.get("email", ""), "").strip(),
+            "linkedin_url": row.get(mapping.get("linkedin_url", ""), "").strip() or None,
+            "address": row.get(mapping.get("address", ""), "").strip() or None,
+            "status": "pending",
+        }
+        result = service_db.table("leads").insert(lead_data).execute()
+        lead_id = result.data[0]["id"]
+        lead_ids.append(lead_id)
+
+        if openai_key:
+            t = threading.Thread(
+                target=_enrich_lead_worker,
+                args=(lead_id, lead_data["name"], lead_data["linkedin_url"], openai_key),
+                daemon=True,
+            )
+            t.start()
+
+    return jsonify({"imported": len(lead_ids), "lead_ids": lead_ids})
+
+
+@app.route("/leads/status")
+@login_required
+def leads_status():
+    access_token = session.get("access_token")
+    user = supabase.auth.get_user(jwt=access_token).user
+    leads = service_db.table("leads") \
+        .select("id,name,email,linkedin_url,status,error_message") \
+        .eq("user_id", user.id) \
+        .order("created_at", desc=True) \
+        .execute().data
+    return jsonify(leads)
+
+
+@app.route("/leads/<lead_id>/generate", methods=["POST"])
+@login_required
+def generate_piece(lead_id):
+    from pipeline import render_template as render_tmpl
+    access_token = session.get("access_token")
+    user = supabase.auth.get_user(jwt=access_token).user
+    settings = session.get("user_settings", {})
+    openai_key = settings.get("openai_key") or os.environ.get("OPENAI_API_KEY", "")
+
+    if not openai_key:
+        return jsonify({"error": "No OpenAI key configured"}), 400
+
+    resp = service_db.table("leads").select("*") \
+        .eq("id", lead_id).eq("user_id", user.id) \
+        .maybe_single().execute()
+    if not resp.data:
+        return jsonify({"error": "Lead not found"}), 404
+    lead = resp.data
+
+    if lead["status"] != "enriched":
+        return jsonify({"error": f"Lead is '{lead['status']}' — must be 'enriched' before generating"}), 400
+
+    body = request.get_json(force=True, silent=True) or {}
+    template_name = body.get("template", "homepage")
+
+    try:
+        output = render_tmpl(lead["raw_data"], template_name, openai_key)
+        service_db.table("pieces").insert({
+            "user_id": user.id,
+            "lead_id": lead_id,
+            "template": template_name,
+            "output_json": output,
+            "status": "ready",
+        }).execute()
+        return jsonify({"output": output})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
 @login_required
 def save_keys():
     settings = session.get("user_settings", {})

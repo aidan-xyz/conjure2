@@ -413,29 +413,81 @@
 
             <!-- LEADS -->
             <div class="tab-panel" id="panel-leads">
+
+                <!-- Import section -->
+                <div class="table-wrap" style="margin-bottom:1.5rem;">
+                    <div class="table-head"><h3>Import leads</h3></div>
+                    <div style="padding:1.75rem;">
+
+                        <!-- Drop zone -->
+                        <div id="drop-zone" onclick="document.getElementById('csv-input').click()"
+                            style="border:2px dashed var(--border);border-radius:4px;padding:2.5rem;text-align:center;color:var(--mid);cursor:pointer;transition:border-color .15s;">
+                            <p style="margin:0;font-size:.9rem;">Drop a CSV here or <span style="color:var(--red);text-decoration:underline;">browse</span></p>
+                            <p style="margin:.4rem 0 0;font-size:.75rem;opacity:.7;">Columns used: name, email, linkedin_url, address</p>
+                            <input type="file" id="csv-input" accept=".csv" style="display:none" />
+                        </div>
+
+                        <!-- Column mapping (hidden until file loaded) -->
+                        <div id="mapping-ui" style="display:none;">
+                            <p style="font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--mid);margin:0 0 1rem;">Map columns</p>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem 2rem;margin-bottom:1.25rem;">
+                                <div class="field-row" style="flex-direction:row;align-items:center;gap:.75rem;">
+                                    <label style="min-width:100px;margin-bottom:0;">Name *</label>
+                                    <select id="map-name" style="flex:1;"></select>
+                                </div>
+                                <div class="field-row" style="flex-direction:row;align-items:center;gap:.75rem;">
+                                    <label style="min-width:100px;margin-bottom:0;">Email *</label>
+                                    <select id="map-email" style="flex:1;"></select>
+                                </div>
+                                <div class="field-row" style="flex-direction:row;align-items:center;gap:.75rem;">
+                                    <label style="min-width:100px;margin-bottom:0;">LinkedIn URL</label>
+                                    <select id="map-linkedin" style="flex:1;"></select>
+                                </div>
+                                <div class="field-row" style="flex-direction:row;align-items:center;gap:.75rem;">
+                                    <label style="min-width:100px;margin-bottom:0;">Address</label>
+                                    <select id="map-address" style="flex:1;"></select>
+                                </div>
+                            </div>
+                            <div id="csv-preview" style="margin-bottom:1.25rem;overflow-x:auto;border:1px solid var(--border);border-radius:4px;max-height:150px;overflow-y:auto;font-size:.78rem;"></div>
+                            <button id="import-btn" class="btn-action">Import <span id="import-count">0</span> leads →</button>
+                            <button onclick="resetImport()" style="background:none;border:none;color:var(--mid);cursor:pointer;font-size:.875rem;margin-left:1rem;">Cancel</button>
+                        </div>
+
+                        <!-- Progress indicator -->
+                        <div id="import-progress" style="display:none;padding:1rem 0;text-align:center;color:var(--mid);font-size:.875rem;">
+                            Saving leads and starting enrichment…
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Leads table -->
                 <div class="table-wrap">
                     <div class="table-head">
-                        <h3>Lead list</h3>
-                        <button class="btn-action">+ Add lead</button>
+                        <h3>Leads</h3>
+                        <span id="leads-summary" style="font-size:.8rem;color:var(--mid);"></span>
                     </div>
                     <table>
                         <thead>
                             <tr>
                                 <th>Name</th>
-                                <th>Company</th>
                                 <th>Email</th>
+                                <th>LinkedIn</th>
                                 <th>Status</th>
+                                <th style="width:110px;"></th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <tr>
-                                <td colspan="4" style="text-align:center; color:var(--mid); padding: 3rem;">
-                                    No leads yet. Add one to get started.
-                                </td>
-                            </tr>
+                        <tbody id="leads-tbody">
+                            {% if leads %}
+                            <tr><td colspan="5" style="text-align:center;color:var(--mid);padding:2rem;">Loading…</td></tr>
+                            {% else %}
+                            <tr><td colspan="5" style="text-align:center;color:var(--mid);padding:3rem;">No leads yet. Upload a CSV to get started.</td></tr>
+                            {% endif %}
                         </tbody>
                     </table>
+                    <div id="piece-output"></div>
                 </div>
+
             </div>
 
             <!-- SETTINGS -->
@@ -490,6 +542,218 @@
                 a.classList.toggle('active', a.getAttribute('onclick') && a.getAttribute('onclick').includes(name));
             });
         }
+
+        // ------------------------------------------------------------------
+        // CSV import
+        // ------------------------------------------------------------------
+        let csvData = null;
+        let pollTimer = null;
+
+        const dropZone = document.getElementById('drop-zone');
+        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor = 'var(--red)'; });
+        dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = 'var(--border)'; });
+        dropZone.addEventListener('drop', e => {
+            e.preventDefault(); dropZone.style.borderColor = 'var(--border)';
+            if (e.dataTransfer.files[0]) loadCSVFile(e.dataTransfer.files[0]);
+        });
+        document.getElementById('csv-input').addEventListener('change', e => {
+            if (e.target.files[0]) loadCSVFile(e.target.files[0]);
+        });
+
+        function loadCSVFile(file) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                csvData = parseCSV(e.target.result);
+                if (!csvData.headers.length) {
+                    alert('Could not read CSV headers. Make sure the file is comma-separated.');
+                    return;
+                }
+                if (!csvData.rows.length) {
+                    alert(`Headers found (${csvData.headers.join(', ')}) but no data rows. Make sure the file has at least one row below the header.`);
+                    return;
+                }
+                showMappingUI();
+            };
+            reader.readAsText(file);
+        }
+
+        function parseCSV(text) {
+            text = text.replace(/^\uFEFF/, ''); // strip Excel BOM
+            const lines = text.trim().split(/\r?\n/);
+            const headers = splitRow(lines[0]);
+            const rows = lines.slice(1).filter(l => l.trim()).map(splitRow);
+            return { headers, rows };
+        }
+
+        function splitRow(row) {
+            const out = []; let inQ = false, cur = '';
+            for (let i = 0; i < row.length; i++) {
+                if (row[i] === '"') { inQ = !inQ; }
+                else if (row[i] === ',' && !inQ) { out.push(cur.trim()); cur = ''; }
+                else { cur += row[i]; }
+            }
+            out.push(cur.trim());
+            return out;
+        }
+
+        function showMappingUI() {
+            dropZone.style.display = 'none';
+            document.getElementById('mapping-ui').style.display = 'block';
+            const guesses = {
+                'map-name':    ['name','full name','fullname','first name'],
+                'map-email':   ['email','email address','e-mail'],
+                'map-linkedin':['linkedin','linkedin url','linkedin_url','profile url'],
+                'map-address': ['address','mailing address','street','location'],
+            };
+            ['map-name','map-email','map-linkedin','map-address'].forEach(id => {
+                const sel = document.getElementById(id);
+                sel.innerHTML = '<option value="">\u2014 skip \u2014</option>';
+                csvData.headers.forEach(h => {
+                    const o = document.createElement('option'); o.value = o.textContent = h; sel.appendChild(o);
+                });
+                const lower = csvData.headers.map(h => h.toLowerCase());
+                const hit = guesses[id].find(g => lower.includes(g));
+                if (hit) sel.value = csvData.headers[lower.indexOf(hit)];
+            });
+            document.getElementById('import-count').textContent = csvData.rows.length;
+            // Preview table
+            const max = Math.min(csvData.headers.length, 5);
+            let html = '<table style="width:100%;border-collapse:collapse;"><tr style="background:#f5f1ea;">';
+            csvData.headers.slice(0, max).forEach(h => html += `<th style="padding:.35rem .7rem;text-align:left;font-size:.73rem;font-weight:600;">${h}</th>`);
+            if (csvData.headers.length > max) html += '<th style="padding:.35rem .7rem;color:#bbb;">…</th>';
+            html += '</tr>';
+            csvData.rows.slice(0, 3).forEach(r => {
+                html += '<tr style="border-top:1px solid var(--border);">';
+                r.slice(0, max).forEach(c => html += `<td style="padding:.35rem .7rem;font-size:.73rem;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c}</td>`);
+                if (r.length > max) html += '<td style="color:#bbb;">…</td>';
+                html += '</tr>';
+            });
+            if (csvData.rows.length > 3) html += `<tr><td colspan="${max+1}" style="padding:.35rem .7rem;font-size:.72rem;color:#aaa;text-align:center;">+${csvData.rows.length-3} more rows</td></tr>`;
+            html += '</table>';
+            document.getElementById('csv-preview').innerHTML = html;
+        }
+
+        function resetImport() {
+            dropZone.style.display = 'block';
+            document.getElementById('mapping-ui').style.display = 'none';
+            document.getElementById('csv-input').value = '';
+            csvData = null;
+        }
+
+        document.getElementById('import-btn').addEventListener('click', async () => {
+            const mapping = {
+                name:        document.getElementById('map-name').value,
+                email:       document.getElementById('map-email').value,
+                linkedin_url:document.getElementById('map-linkedin').value,
+                address:     document.getElementById('map-address').value,
+            };
+            if (!mapping.name || !mapping.email) { alert('Please map at least Name and Email.'); return; }
+            const rows = csvData.rows.map(r => r.map(c => c.includes(',') ? `"${c}"` : c).join(','));
+            const csvText = [csvData.headers.join(','), ...rows].join('\n');
+            document.getElementById('mapping-ui').style.display = 'none';
+            document.getElementById('import-progress').style.display = 'block';
+            try {
+                const resp = await fetch('/leads/import', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ csvText, mapping }),
+                });
+                const data = await resp.json();
+                if (data.error) throw new Error(data.error);
+                document.getElementById('import-progress').style.display = 'none';
+                dropZone.style.display = 'block';
+                csvData = null;
+                startPolling();
+            } catch (err) {
+                document.getElementById('import-progress').innerHTML =
+                    `<span style="color:#a12110;">Import failed: ${err.message}</span>`;
+            }
+        });
+
+        // ------------------------------------------------------------------
+        // Lead table polling
+        // ------------------------------------------------------------------
+        function statusDot(s) {
+            const m = { pending:['#bbb','Pending'], processing:['#3b82f6','Enriching\u2026'], enriched:['#16a34a','Ready'], failed:['#c8341e','Failed'] };
+            const [col, lbl] = m[s] || ['#bbb', s];
+            const anim = s === 'processing' ? 'animation:ldpulse 1.2s ease infinite;' : '';
+            return `<span style="display:inline-flex;align-items:center;gap:.4rem;font-size:.8rem;"><span style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0;${anim}"></span>${lbl}</span>`;
+        }
+
+        function renderLeads(leads) {
+            const tbody = document.getElementById('leads-tbody');
+            const summary = document.getElementById('leads-summary');
+            if (!leads.length) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--mid);padding:3rem;">No leads yet.</td></tr>';
+                summary.textContent = ''; return;
+            }
+            const enriched = leads.filter(l => l.status === 'enriched').length;
+            const proc = leads.filter(l => l.status === 'processing').length;
+            summary.textContent = `${leads.length} total \u00b7 ${enriched} ready${proc ? ` \u00b7 ${proc} enriching` : ''}`;
+            tbody.innerHTML = leads.map(l => `
+                <tr>
+                    <td>${l.name || '\u2014'}</td>
+                    <td style="color:var(--mid);">${l.email || '\u2014'}</td>
+                    <td>${l.linkedin_url ? `<a href="${l.linkedin_url}" target="_blank" style="color:var(--mid);font-size:.8rem;">&nearr; LinkedIn</a>` : '<span style="color:var(--mid);">\u2014</span>'}</td>
+                    <td>${statusDot(l.status)}${l.error_message ? ` <span title="${l.error_message}" style="color:#c8341e;font-size:.75rem;cursor:help;">(i)</span>` : ''}</td>
+                    <td style="text-align:right;">
+                        <button class="btn-action" onclick="genPiece('${l.id}', this)"
+                            ${l.status !== 'enriched' ? 'disabled style="opacity:.35;cursor:not-allowed;"' : ''}>
+                            Generate
+                        </button>
+                    </td>
+                </tr>`).join('');
+        }
+
+        async function genPiece(id, btn) {
+            btn.disabled = true; btn.textContent = 'Generating\u2026';
+            try {
+                const resp = await fetch(`/leads/${id}/generate`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ template: 'homepage' }),
+                });
+                const data = await resp.json();
+                if (data.error) throw new Error(data.error);
+                btn.textContent = '\u2713 Done'; btn.style.background = '#16a34a';
+                const out = document.getElementById('piece-output');
+                out.innerHTML = `<div style="padding:1.5rem 1.75rem;border-top:1px solid var(--border);">
+                    <p style="font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--mid);margin:0 0 .75rem;">Output \u2014 ${data.output.name || id}</p>
+                    <pre style="background:#1a1a1a;color:#f7f3ec;padding:1.25rem;border-radius:4px;font-size:.78rem;overflow-x:auto;white-space:pre-wrap;">${JSON.stringify(data.output, null, 2)}</pre>
+                </div>`;
+            } catch (err) {
+                btn.disabled = false; btn.textContent = 'Generate';
+                alert('Generate failed: ' + err.message);
+            }
+        }
+
+        function startPolling() {
+            if (pollTimer) clearInterval(pollTimer);
+            fetchAndRender();
+            pollTimer = setInterval(async () => {
+                const leads = await (await fetch('/leads/status')).json();
+                renderLeads(leads);
+                if (leads.every(l => l.status === 'enriched' || l.status === 'failed')) {
+                    clearInterval(pollTimer); pollTimer = null;
+                }
+            }, 5000);
+        }
+
+        async function fetchAndRender() {
+            try {
+                const leads = await (await fetch('/leads/status')).json();
+                renderLeads(leads);
+                const needsPoll = leads.some(l => l.status === 'pending' || l.status === 'processing');
+                if (needsPoll) startPolling();
+            } catch (e) { /* table may not exist yet */ }
+        }
+
+        const _s = document.createElement('style');
+        _s.textContent = '@keyframes ldpulse{0%,100%{opacity:1}50%{opacity:.35}}';
+        document.head.appendChild(_s);
+
+        // On load: render leads from server-side data and poll if any are processing
+        {% if leads %} fetchAndRender(); {% endif %}
     </script>
 
 </body>

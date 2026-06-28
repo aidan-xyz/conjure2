@@ -1,13 +1,145 @@
 """
 Conjure generation pipeline.
 
-1. OpenAI Responses API + web search (prompt1) — research the person, return structured JSON
-2. OpenAI chat completions (prompt2) — format the structured JSON into the homepage artifact JSON
+Stage 1 — Enrichment  (run once per lead at import time, saved to DB)
+    enrich_lead(name, linkedin_url, openai_key) → raw_data dict
 
-Usage:
-    from pipeline import run_pipeline
-    result = run_pipeline("Jane Smith", "https://linkedin.com/in/janesmith", openai_key)
+Stage 2 — Rendering  (run on demand per lead + template)
+    render_template(raw_data, template_name, openai_key) → output JSON dict
+
+Templates live in this directory as prompt files:
+    prompt2.txt  →  "homepage"
+
+CLI usage:
+    python pipeline.py "Jane Smith" "https://linkedin.com/in/janesmith"
 """
+
+import os
+import json
+import re
+import httpx
+from pathlib import Path
+
+PROMPT_ENRICH = Path(__file__).parent / "prompt1.txt"
+
+TEMPLATE_PROMPTS = {
+    "homepage": Path(__file__).parent / "prompt2.txt",
+}
+
+
+# ---------------------------------------------------------------------------
+# OpenAI helpers
+# ---------------------------------------------------------------------------
+
+def _strip_code_fence(text: str) -> str:
+    text = text.strip()
+    match = re.search(r"```(?:json)?\s*([\s\S]+?)\s*```", text)
+    if match:
+        return match.group(1).strip()
+    return text
+
+
+def _call_openai_with_search(system_prompt: str, user_message: str, api_key: str) -> str:
+    """Responses API + web_search_preview — used for enrichment so the model looks up real facts."""
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    body = {
+        "model": "gpt-4o",
+        "tools": [{"type": "web_search_preview"}],
+        "input": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message},
+        ],
+    }
+    with httpx.Client(timeout=180) as client:
+        resp = client.post("https://api.openai.com/v1/responses", headers=headers, json=body)
+        resp.raise_for_status()
+    data = resp.json()
+    text = data.get("output_text", "")
+    if not text:
+        for item in data.get("output", []):
+            if item.get("type") == "message":
+                for part in item.get("content", []):
+                    if part.get("type") == "output_text":
+                        text += part.get("text", "")
+    return text
+
+
+def _call_openai(system_prompt: str, user_message: str, api_key: str, model: str = "gpt-4o") -> str:
+    """Regular chat completions with forced JSON output — used for template rendering."""
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    body = {
+        "model": model,
+        "response_format": {"type": "json_object"},
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message},
+        ],
+    }
+    with httpx.Client(timeout=120) as client:
+        resp = client.post("https://api.openai.com/v1/chat/completions", headers=headers, json=body)
+        resp.raise_for_status()
+    return resp.json()["choices"][0]["message"]["content"]
+
+
+# ---------------------------------------------------------------------------
+# Stage 1 — Enrichment
+# ---------------------------------------------------------------------------
+
+def enrich_lead(name: str, linkedin_url: str | None, openai_key: str) -> dict:
+    """
+    Research a person via web search and return maximal raw data JSON.
+    The prompt instructs the model to capture everything — no selection here.
+    The template stage does the selecting.
+    """
+    system_prompt = PROMPT_ENRICH.read_text(encoding="utf-8")
+    identifier = linkedin_url or name
+    user_message = f"Find everything on: {identifier}"
+    raw = _call_openai_with_search(system_prompt, user_message, openai_key)
+    return json.loads(_strip_code_fence(raw))
+
+
+# ---------------------------------------------------------------------------
+# Stage 2 — Template rendering
+# ---------------------------------------------------------------------------
+
+def render_template(raw_data: dict, template_name: str, openai_key: str) -> dict:
+    """
+    Take enriched raw_data and render it through a template-specific formatter.
+    Each template prompt does its own selection and copy from the raw data.
+    """
+    prompt_path = TEMPLATE_PROMPTS.get(template_name)
+    if not prompt_path:
+        raise ValueError(f"Unknown template '{template_name}'. Available: {list(TEMPLATE_PROMPTS)}")
+    system_prompt = prompt_path.read_text(encoding="utf-8")
+    user_message = f"INPUT (raw blob):\n{json.dumps(raw_data, indent=2)}\n\nOUTPUT:"
+    raw = _call_openai(system_prompt, user_message, openai_key)
+    return json.loads(raw)
+
+
+# ---------------------------------------------------------------------------
+# CLI convenience
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    import sys
+    import pprint
+
+    _name = sys.argv[1] if len(sys.argv) > 1 else input("Full name: ")
+    _url = sys.argv[2] if len(sys.argv) > 2 else input("LinkedIn URL (blank to skip): ").strip() or None
+    _oai = os.environ.get("OPENAI_API_KEY") or input("OpenAI API key: ")
+
+    print("--- Stage 1: Enriching... ---")
+    raw = enrich_lead(_name, _url, _oai)
+    print("--- Stage 2: Rendering homepage template... ---")
+    homepage = render_template(raw, "homepage", _oai)
+    pprint.pprint(homepage)
+
 
 import os
 import json
